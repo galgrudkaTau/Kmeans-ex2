@@ -38,6 +38,9 @@ struct list {
     struct list *next;   
 };
 
+static int ret1(){
+    return 1;
+}
 static PyObject* kMeansCAPI(PyObject *self,PyObject *args){
     int k,d,size;
     int max_iter;
@@ -47,7 +50,8 @@ static PyObject* kMeansCAPI(PyObject *self,PyObject *args){
     if(!PyArg_ParseTuple(args, "iiiidOO", &k, &max_iter,&size,&d, &epsilon, &initCentArray, &inputMatrix)){
         return NULL;
     }
-    return Py_BuildValue("O",kMeansMain(k,max_iter,size,d,epsilon,initCentArray,inputMatrix));
+    /*return Py_BuildValue("O",kMeansMain(k,max_iter,size,d,epsilon,initCentArray,inputMatrix));*/
+    return Py_BuildValue("i",ret1());
 }
 
 static void anErrorHasOccurred(){
@@ -135,6 +139,9 @@ static int findInputSize(FILE *ifp) {
 }
 
 static double ** inizializeCentroids(int k, int d, double **datapoints, double **cents){
+    /*initialize centroids to be the centroids calculated in kmeans_pp.py
+    datapoints- 
+    cents- array of indicies of the chosen centroids */
     double *centroid = NULL;
     double **matrix = NULL;
     int i,j;
