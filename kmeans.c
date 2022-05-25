@@ -30,7 +30,7 @@ static int isNatural(char * s);
 static void writeToFile(double **cents, int k, int d, char * file_name);
 static void validityCheck1(int argc, char *argv[]);
 static void validityCheck2(int k, int max_iter, int size);
-static int kMeansMain(int k, int max_iter,int size,int d ,double epsilon ,PyObject cents,PyObject datapoints);
+static double** kMeansMain(int max_iter,double epsilon ,PyObject* cents,PyObject* datapoints);
 static PyObject* KmeansCAPI(PyObject *self,PyObject *args);
 
 struct list { 
@@ -47,11 +47,15 @@ static PyObject* kMeansCAPI(PyObject *self,PyObject *args){
     double epsilon;
     PyObject initCentArray;
     PyObject inputMatrix;
-    if(!PyArg_ParseTuple(args, "iiiidOO", &k, &max_iter,&size,&d, &epsilon, &initCentArray, &inputMatrix)){
+    if(!PyArg_ParseTuple(args, "idOO", &max_iter, &epsilon, &initCentArray, &inputMatrix)){
         return NULL;
     }
-    /*return Py_BuildValue("O",kMeansMain(k,max_iter,size,d,epsilon,initCentArray,inputMatrix));*/
-    return Py_BuildValue("i",ret1());
+    PyObject * cents= &initCentArray;
+    PyObject *inMatrix= &inputMatrix;
+     
+    return Py_BuildValue("O",kMeansMain(max_iter,epsilon,cents,inMatrix));
+    
+    /*return Py_BuildValue("i",ret1());*/
 }
 
 static void anErrorHasOccurred(){
@@ -335,23 +339,55 @@ static void validityCheck2(int k, int max_iter, int size){
         }
 }
 
-static int kMeansMain(int k, int max_iter,int size,int d, double epsilon ,PyObject cents,PyObject datapoints){
+static double ** objectToMatrix(PyObject* obj){
+    int objLen, itemLen;
+    int i,j;
+    double *vector = NULL;
+    double **matrix = NULL;
+
+    objLen=PyList_Size(obj);
+    itemLen=PyList_Size(PyList_GetItem(obj,0));
+    vector = (double *)calloc(objLen*itemLen, sizeof(double));
+    if (vector == NULL){
+        anErrorHasOccurred();
+    }
+    matrix = (double **)calloc(objLen, sizeof(double *)); 
+    if (matrix == NULL){
+        anErrorHasOccurred();
+    }
+    for (i=0; i<objLen; i++) {
+        matrix[i] = vector + i*itemLen;
+    }
     
-    /*convert PyObject to list,..*/
-    double ** centroids;
+    for (i=0 ; i<objLen ; i++){
+        for (j=0; j<itemLen; j++){
+            matrix[i][j]=PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(obj,i),j));
+        }
+    }
+    return matrix;
+
+}
+
+static double ** kMeansMain(int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
+    double ** centroids, **dataMatrix;
+    int k,size,d;
     LINK *clusters;
-    centroids = inizializeCentroids(k, d, cents,datapoints); /*this array holds K datapoints*/
+    /*convert PyObject to list,..*/
+    centroids = objectToMatrix(cents);
+    dataMatrix = objectToMatrix(datapoints);
+
+    d=sizeof(*centroids)[0]/ sizeof(double);
+    size= sizeof(*dataMatrix)/sizeof(*centroids)[0];
+    k=sizeof(*centroids)/sizeof(*centroids)[0];
+    /*centroids = inizializeCentroids(k, d, cents,datapoints)/*; /*this array holds K datapoints*/
     clusters = (LINK *)calloc(k, sizeof(LINK));
     if (clusters == NULL){
         anErrorHasOccurred();
     }
     restartClusters(clusters, k, 1); /*this array holds K datapoints*/
-    kMeans(k, size, d, max_iter, centroids, clusters, datapointMatrix);
-    writeToFile(centroids, k, d, outputFileName);
-    free(datapointMatrix[0]); /*free centroid*/
-    free(datapointMatrix);
-    free(centroids[0]);
-    free(centroids);
-    free(clusters);
-    return 0;
+    kMeans(k, size, d, max_iter, centroids, clusters, dataMatrix);
+    free(dataMatrix[0]); 
+    free(dataMatrix);
+    free(clusters); 
+    return centroids;
 }
