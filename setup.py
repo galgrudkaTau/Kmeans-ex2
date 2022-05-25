@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages, Extension
 
 setup(
-    name='mykmeanspp',
+    name='mykmeanssp',
     version='0.1.0',
-    author="Maya Aderka & Gal Grudka",
+    author="-",
     install_requires=['invoke'],
     packages=find_packages(),
     description='',
@@ -14,4 +14,6 @@ setup(
         ),
     ]
 )
+
+
 
