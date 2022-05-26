@@ -1,11 +1,11 @@
 #define PY_SSIZE_T_CLEAN
+#include <Python.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 #include <float.h>
 #include <ctype.h>
-#include <Python.h>
 
 typedef struct list ELEMENT;
 typedef ELEMENT *LINK;
@@ -31,8 +31,8 @@ struct list {
 };
 
 static PyMethodDef KmeansCAPIMethods[]={
-    {"mykmeanssp",
-     (PyCFunction) fit,
+    {"fit",
+     fit,
      METH_VARARGS,
      PyDoc_STR("")},
      {NULL, NULL,0,NULL}
@@ -55,8 +55,7 @@ PyMODINIT_FUNC PyInit_mykmeanssp(void){
     return m;
     }
 
-
-static PyObject* fit(PyObject *self,PyObject *args){
+static PyObject* fit(­­­­­PyObject *self,PyObject *args){
     int max_iter;
     double epsilon;
     PyObject initCentArray;
@@ -64,12 +63,10 @@ static PyObject* fit(PyObject *self,PyObject *args){
     if(!PyArg_ParseTuple(args, "OOid",&initCentArray, &inputMatrix ,&max_iter, &epsilon)){
         return NULL;
     }
-    PyObject * cents= &initCentArray;
+    PyObject *cents= &initCentArray;
     PyObject *inMatrix= &inputMatrix;
      
     return Py_BuildValue("O",kMeansMain(max_iter,epsilon,cents,inMatrix));
-    
-    /*return Py_BuildValue("i",ret1());*/
 }
 
 static void anErrorHasOccurred(){
@@ -81,11 +78,6 @@ void invalidInput(){
     printf("Invalid Input!\n");
     exit(1);
 }
-
-
-
-
-
 
 
 static void restartClusters(LINK *clusters, int k, int conti) {
@@ -108,8 +100,7 @@ static void restartClusters(LINK *clusters, int k, int conti) {
         current = clusters[i];
         delete_list(current);
         } 
-    }
-    
+    } 
 }
 
 static void delete_list(LINK head) {
@@ -123,7 +114,6 @@ static void kMeans(int k, int size, int d, int max_iter, double **cents, LINK *c
     int iter = 0;
     int continue_condition = 1;
     while (iter<max_iter && continue_condition){
-    
        assignToCluster(cents, matrix, clusters, k, size, d);
        continue_condition = updateCentroids(cents, clusters, matrix, k, d);
        iter++;
@@ -176,14 +166,12 @@ static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix 
             for  (j=0; j<d; j++) {
                 sum[j] += inputMatrix[current->datapoint][j];
             }
-
             current = current->next;
             sizeOfCluster++;
         }
         if (sizeOfCluster == 0){
             anErrorHasOccurred();
         }
-
         for (m=0; m<d; m++){
             sum[m] /= sizeOfCluster;
         }
@@ -198,7 +186,7 @@ static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix 
     return difference > 0;
 }
 
-static double calculateNorma(double *old, double * new, int d){
+static double calculateNorma(double *old, double *new, int d){
     double sum = 0;
     int i;
     for (i=0; i<d; i++){
@@ -216,7 +204,7 @@ static double calculateDistance(double *datapoint, double *centroid, int d){
     return distance;
 }
 
-static double ** objectToMatrix(PyObject* obj){
+static double **objectToMatrix(PyObject* obj){
     Py_ssize_t objLen, itemLen;
     int i,j;
     double *vector = NULL;
@@ -245,7 +233,7 @@ static double ** objectToMatrix(PyObject* obj){
 
 }
 
-static double ** kMeansMain(int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
+static double **kMeansMain(int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
     double ** centroids, **dataMatrix;
     int k,size,d;
     LINK *clusters;
@@ -253,11 +241,11 @@ static double ** kMeansMain(int max_iter, double epsilon ,PyObject* cents,PyObje
     centroids = objectToMatrix(cents);
     dataMatrix = objectToMatrix(datapoints);
 
-    d=sizeof(*centroids)[0]/ sizeof(double);
-    size= sizeof(*dataMatrix)/sizeof(*centroids)[0];
-    k=sizeof(*centroids)/sizeof(*centroids)[0];
+    d = sizeof(*centroids)[0]/ sizeof(double);
+    size = sizeof(*dataMatrix)/sizeof(*centroids)[0];
+    k = sizeof(*centroids)/sizeof(*centroids)[0];
     clusters = (LINK *)calloc(k, sizeof(LINK));
-    if (clusters == NULL){
+    if(clusters == NULL){
         anErrorHasOccurred();
     }
     restartClusters(clusters, k, 1); /*this array holds K datapoints*/
