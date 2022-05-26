@@ -4,7 +4,6 @@ import sys
 import math
 import mykmeanssp
 
-
 np.random.seed(0)
 
 def invalid_input():
@@ -88,7 +87,7 @@ def main():
     max_iter=300
     if(len(sys.argv)==5):
         check_is_float(sys.argv[2])
-        epsilon=sys.argv[2]
+        epsilon=float(sys.argv[2])
         file_name_1=sys.argv[3]
         file_name_2=sys.argv[4]
         
@@ -96,7 +95,7 @@ def main():
         check_is_natural(sys.argv[2])
         max_iter=int(sys.argv[2])
         check_is_float(sys.argv[2])
-        epsilon=sys.argv[3]
+        epsilon=float(sys.argv[3])
         file_name_1=sys.argv[4]
         file_name_2=sys.argv[5]
     else: 
