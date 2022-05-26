@@ -55,7 +55,7 @@ PyMODINIT_FUNC PyInit_mykmeanssp(void){
     return m;
     }
 
-static PyObject* fit(­­­­­PyObject *self,PyObject *args){
+static PyObject* fit(PyObject *self,PyObject *args){
     int max_iter;
     double epsilon;
     PyObject initCentArray;
