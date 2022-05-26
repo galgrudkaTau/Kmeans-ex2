@@ -7,13 +7,18 @@ setup(
     install_requires=['invoke'],
     packages=find_packages(),
     description='',
+    classifiers=[
+        'Programming Language  :: Python ::  Implementation  ::  CPhython',
+    ],
     ext_modules =[
         Extension(
-            'kmeanspp',
+            'mykmeanssp',
             ['kmeans.c'],
         ),
     ]
 )
+
+
 
 
 
