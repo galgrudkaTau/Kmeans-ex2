@@ -15,10 +15,6 @@ typedef double *datapoint;
 
 static void anErrorHasOccurred();
 static void invalidInput();
-static double** fileToDataPoints(FILE *ifp,int d, int size);
-static int findDimension(FILE *ifp);
-static int findInputSize(FILE *ifp);
-static double **inizializeCentroids(int k, int d, double **datapoints, double **cents);
 static void restartClusters(LINK *clusters, int k, int conti);
 static void delete_list(LINK head);
 static void kMeans(int k, int size, int d, int max_iter, double **cents, LINK *clusters, double **matrix);
@@ -26,28 +22,46 @@ static void assignToCluster(double **cents,double** datapoints,LINK *clusters, i
 static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d);
 static double calculateNorma(double *old, double * new, int d);
 static double calculateDistance(double *datapoint, double *centroid, int d);
-static int isNatural(char * s);
-static void writeToFile(double **cents, int k, int d, char * file_name);
-static void validityCheck1(int argc, char *argv[]);
-static void validityCheck2(int k, int max_iter, int size);
 static double** kMeansMain(int max_iter,double epsilon ,PyObject* cents,PyObject* datapoints);
-static PyObject* KmeansCAPI(PyObject *self,PyObject *args);
+static PyObject* fit(PyObject *self,PyObject *args);
 
 struct list { 
     int datapoint; 
     struct list *next;   
 };
 
-static int ret1(){
-    return 1;
-}
-static PyObject* kMeansCAPI(PyObject *self,PyObject *args){
-    int k,d,size;
+static PyMethodDef KmeansCAPIMethods[]={
+    {"mykmeanssp",
+     (PyCFunction) fit,
+     METH_VARARGS,
+     PyDoc_STR("")},
+     {NULL, NULL,0,NULL}
+    };
+
+static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "mykmeanssp", 
+        NULL, 
+        -1, 
+        KmeansCAPIMethods
+};
+
+PyMODINIT_FUNC PyInit_mykmeanssp(void){
+    PyObject *m;
+    m=PyModule_Create(&moduledef);
+    if (!m) {
+        return NULL;
+    }
+    return m;
+    }
+
+
+static PyObject* fit(PyObject *self,PyObject *args){
     int max_iter;
     double epsilon;
     PyObject initCentArray;
     PyObject inputMatrix;
-    if(!PyArg_ParseTuple(args, "idOO", &max_iter, &epsilon, &initCentArray, &inputMatrix)){
+    if(!PyArg_ParseTuple(args, "OOid",&initCentArray, &inputMatrix ,&max_iter, &epsilon)){
         return NULL;
     }
     PyObject * cents= &initCentArray;
@@ -68,104 +82,11 @@ void invalidInput(){
     exit(1);
 }
 
-static double ** fileToDataPoints(FILE *ifp, int d, int size) {
-    double currentCoordinate;
-    double *vector = NULL;
-    double **matrix = NULL;
-    int i, j;
-    
-    vector = (double *)calloc(size*d, sizeof(double));
-    if (vector == NULL){
-        anErrorHasOccurred();
-    }
-    matrix = (double **)calloc(size, sizeof(double *)); 
-    if (matrix == NULL){
-        anErrorHasOccurred();
-    }
-    for (i=0; i<size; i++) {
-        matrix[i] = vector + i*d;
-    }
-    for (i=0; i<size; i++){  
-        for(j=0; j<d; j++){
-            fscanf(ifp, "%lf %*[,]", &currentCoordinate);
-            matrix[i][j] = currentCoordinate;
-        }
-    }
-    return matrix;
-    }
 
-static int findDimension(FILE *ifp) {
-    char c;
-    int commacnt=0;
-    int dim=0;
-    do {
-        c = fgetc(ifp);
-        /* Taking input single character at a time*/
-        if( feof(ifp) ){
-            return -1; 
-        }
 
-        if (c == 10) /* c==\n */
-            {
-                dim = commacnt+1;
-                break;
-            }
-        else if (c==44){
-            /* read first line #of, +1 = d, go to the beggining and create array of arrays (d*sizeof(double))
-               if digit , dot or - => add to the corrent cordinate of (X_i)
-               else if , => add to */
-                commacnt++;
-            } 
-        } while(1); 
-    
-    rewind(ifp);
-    return dim;
-}
 
-static int findInputSize(FILE *ifp) {
-    char c;
-    int cnt = 0;
-    do {
-        c = fgetc(ifp);
-        /* Taking input single character at a time*/
-        if( feof(ifp) ){
-            break; 
-        }
 
-        if (c == 10) /* c==\n */ 
-            {
-                cnt++;
-            }
-        } while(1); 
-    
-    rewind(ifp);
-    return cnt;
-}
 
-static double ** inizializeCentroids(int k, int d, double **datapoints, double **cents){
-    /*initialize centroids to be the centroids calculated in kmeans_pp.py
-    datapoints- 
-    cents- array of indicies of the chosen centroids */
-    double *centroid = NULL;
-    double **matrix = NULL;
-    int i,j;
-    centroid = (double *)calloc(k*d, sizeof(double));
-    if (centroid == NULL){
-        anErrorHasOccurred();
-    }
-    matrix = (double **)calloc(k, sizeof(double *)); 
-    if (matrix == NULL){
-        anErrorHasOccurred();
-    }
-    for (i=0; i<k; i++) {
-        matrix[i] = centroid + i*d;
-    }
-    for (i=0; i<k; i++){
-        matrix[i]=PyList_GetItem(datapoints, PyList_GetItem(cents,i)); 
-    
-    }  
-    return matrix; 
-}
 
 static void restartClusters(LINK *clusters, int k, int conti) {
     int i;
@@ -295,52 +216,8 @@ static double calculateDistance(double *datapoint, double *centroid, int d){
     return distance;
 }
 
-static int isNatural(char *s){
-    while (*s) {
-        if(isdigit(*s) == 0){
-            return 0;
-        }
-        s++;
-    }
-    return 1;
-}
-
-static void writeToFile(double **cents, int k, int d, char * fileName){
-    int i,j;
-    FILE *ofp = NULL;
-    ofp = fopen(fileName,"w");
-    if (ofp == NULL){
-        invalidInput();
-    }
-    for (i = 0; i<k; i++){
-        for (j=0; j<d-1; j++){
-            fprintf(ofp,"%.4f,",cents[i][j]);
-        }
-        fprintf(ofp,"%.4f",cents[i][j]);
-        fprintf(ofp,"\n");
-    }
-    fclose(ofp);
-}
-
-static void validityCheck1(int argc, char *argv[]){
-    if ((argc != 4 && argc != 5) || 
-        !isNatural(argv[1]) || 
-        (argc == 5 && !isNatural(argv[2]))){
-        printf("Invalid Input!\n");
-        exit(1);
-        }
-}
-static void validityCheck2(int k, int max_iter, int size){
-    if (k == 0 ||
-        max_iter == 0 ||
-        k>size){
-        printf("Invalid Input!\n");
-        exit(1);
-        }
-}
-
 static double ** objectToMatrix(PyObject* obj){
-    int objLen, itemLen;
+    Py_ssize_t objLen, itemLen;
     int i,j;
     double *vector = NULL;
     double **matrix = NULL;
@@ -379,7 +256,6 @@ static double ** kMeansMain(int max_iter, double epsilon ,PyObject* cents,PyObje
     d=sizeof(*centroids)[0]/ sizeof(double);
     size= sizeof(*dataMatrix)/sizeof(*centroids)[0];
     k=sizeof(*centroids)/sizeof(*centroids)[0];
-    /*centroids = inizializeCentroids(k, d, cents,datapoints)/*; /*this array holds K datapoints*/
     clusters = (LINK *)calloc(k, sizeof(LINK));
     if (clusters == NULL){
         anErrorHasOccurred();
