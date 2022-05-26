@@ -27,16 +27,21 @@ def files_to_dataframe(file_name_1,file_name_2):
     data = data.sort_values(by=['0'])
     return data
 
-def kmeanspp(matrix, k):
-    matrix_idx = range(len(matrix))
+def kmeanspp(matrix, k,keys):
+    centroids = []
+    init_idx = []
+
+    #matrix_idx = range(len(matrix))
+    matrix_idx =[idx for idx in keys]
+    print(type(matrix_idx[0]))
     if (k>len(matrix)):
         invalid_input()
     first_idx = np.random.choice(matrix_idx)
-    centroids = []
-    init_idx = []
+    place=matrix_idx.index(first_idx)
     init_idx.append(first_idx)
     #print("appended first centroid "+"".join(str(first_idx)))
-    centroids.append(matrix[first_idx])
+    
+    centroids.append(matrix[place])
     #print("first centroid "+"".join(str(matrix[first_idx])))
     while (len(centroids)<k):
         D = np.full((len(matrix)),float('inf'))
@@ -45,15 +50,16 @@ def kmeanspp(matrix, k):
             D[l] = min(dist)   
         # print(D[:5])
         Dm = sum(D)
-        P = [D[i]/Dm for i in matrix_idx]
+        P = [D[i]/Dm for i in range(len(matrix_idx))]
         idx_chosen = np.random.choice(matrix_idx, p=P)
         init_idx.append(idx_chosen)
         #print(idx_chosen)
-        centroids.append(matrix[idx_chosen])
+        place=matrix_idx.index(idx_chosen)
+        centroids.append(matrix[place])
         init_centroids = np.stack(centroids)
     print("Initial centroids to be "+"".join(str(init_idx))) 
 
-    return init_idx
+    return init_idx, init_centroids
 
 def calculate_distance(centroid, data_point):
     return sum([pow(centroid[i]-data_point[i],2) for i in range(len(centroid))])
@@ -104,13 +110,18 @@ def main():
         #file_name_1 = "input_1_db_1.txt"
         #file_name_2 = "input_1_db_2.txt"
         input_data = files_to_dataframe(file_name_1, file_name_2)
+        keys= input_data.iloc[:,0] #extract the first column
+        keys=keys.to_numpy()
         data = input_data.drop(['0'],axis=1) # data frame 
         input_matrix = data.to_numpy() #nd array 
         d=data.shape[1]
         #centroids = kmeanspp(input_matrix,k)
 
-        idxs = kmeanspp(input_matrix,k) #initialize centroids 
-        print(kmeanspp.kmeanssp(max_iter, epsilon, idxs ,input_matrix))
+        idxs,init_cents = kmeanspp(input_matrix,k,keys) #initialize centroids 
+        print([int(i) for i in idxs])
+        print(kmeanssp.fit(init_cents,input_matrix,max_iter,epsilon))
+        
+        #print(kmeanspp.kmeanssp(max_iter, epsilon, idxs ,input_matrix))
     #except Exception as e:
         # print("An Error Has Occurred\n")
         # exit()
