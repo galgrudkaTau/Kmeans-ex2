@@ -22,7 +22,7 @@ static void assignToCluster(double **cents,double** datapoints,LINK *clusters, i
 static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d, double epsilon);
 static double calculateNorma(double *old, double * new, int d);
 static double calculateDistance(double *datapoint, double *centroid, int d);
-static double** kMeansMain(int size, int k, int d ,int max_iter,double epsilon ,PyObject *cents,PyObject *datapoints);
+static PyObject* kMeansMain(int size, int k, int d ,int max_iter,double epsilon ,PyObject *cents,PyObject *datapoints);
 static PyObject* fit(PyObject *self,PyObject *args);
 
 struct list { 
@@ -56,7 +56,7 @@ PyMODINIT_FUNC PyInit_mykmeanssp(void){
     }
 
 static PyObject* fit(PyObject *self,PyObject *args){
-    printf("entered fit\n");
+    /*printf("entered fit\n");*/
     int max_iter, k, size, d;
     double epsilon;
     PyObject* initCentArray;
@@ -206,23 +206,23 @@ static double **objectToMatrix(PyObject* obj, int amount, int length){
     int i,j;
     double *vector = NULL;
     double **matrix = NULL;    PyObject *item = NULL;
-    printf("items in array =%d\n", amount);
-    printf("length of item =%d\n", length);
+    /*printf("items in array =%d\n", amount);
+    printf("length of item =%d\n", length);*/
     vector = (double *)calloc(amount*length, sizeof(double));
     if (vector == NULL){
-        printf("error in vector allocation\n");
+        /*printf("error in vector allocation\n");*/
         anErrorHasOccurred();
     }
     matrix = (double **)calloc(length, sizeof(double *)); 
     if (matrix == NULL){
-        printf("error in vector allocation\n");
+        /*printf("error in vector allocation\n");*/
         anErrorHasOccurred();
     }
     for (i=0; i<amount; i++) {
         matrix[i] = vector + i*length;
     }
     matrix[0][0]= 1.0;
-    printf("about to enter for loop\n");
+    /*printf("about to enter for loop\n");*/
     for (i=0 ; i<amount ; i++){
         item = PyList_GetItem(obj,i);
         for (j=0; j<length; j++){
@@ -230,41 +230,41 @@ static double **objectToMatrix(PyObject* obj, int amount, int length){
             matrix[i][j]=PyFloat_AsDouble(PyList_GetItem(item,j));
         }
     }
-    printf("reached end of Object to Matrix method\n");
+    /*printf("reached end of Object to Matrix method\n");*/
     return matrix;
 }
 
-static double **kMeansMain(int size, int k, int d, int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
+static PyObject *kMeansMain(int size, int k, int d, int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
+    PyObject *CoutputList, *centroid, *item;
     int i, j;
     double ** centroids, **dataMatrix;
     LINK *clusters;
     /*convert PyObject to list,..*/
-    printf("entered C main\n");
+    /*printf("entered C main\n");*/
     centroids = objectToMatrix(cents, k, d);
     dataMatrix = objectToMatrix(datapoints, size, d);
-    /*d = sizeof(*centroids)[0]/ sizeof(double);
-    size = sizeof(*dataMatrix)/sizeof(*centroids)[0];
-    k = sizeof(*centroids)/sizeof(*centroids)[0];*/
+    /*printf("first index in first datapoint is %lf\n",dataMatrix[0][0]);*/
+    /*printf("first index in first centroid is %lf\n",centroids[0][0]);*/
     clusters = (LINK *)calloc(k, sizeof(LINK));
     if(clusters == NULL){
         anErrorHasOccurred();
     }
-    printf("allocated clusters\n");
+    /*printf("allocated clusters\n");*/
     restartClusters(clusters, k, 1); /*this array holds K datapoints*/
-    printf("initialized clusters\n");
+    /*printf("initialized clusters\n");*/
     kMeans(k, size, d, epsilon, max_iter, centroids, clusters, dataMatrix);
-    printf("ran kMeans\n");
+    /*printf("ran kMeans\n");*/
     free(dataMatrix[0]); 
     free(dataMatrix);
     free(clusters); 
-    
+    CoutputList = PyList_New(k);
     for (i = 0; i<k; i++){
-        for (j=0; j<d-1; j++){
-            printf("%.4f,",centroids[i][j]);
+        centroid = PyList_New(d);
+        for (j=0; j<d; j++){
+            item = PyFloat_FromDouble(centroids[i][j]);
+            PyList_SetItem(centroid,j,item);
         }
-        printf("%.4f",centroids[i][j]);
-        printf("\n");
+        PyList_SetItem(CoutputList,i,centroid);
     }
-    printf("finished code");
-    return centroids;
+    return CoutputList;
 }
