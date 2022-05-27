@@ -117,7 +117,9 @@ def main():
     print(res)
 
     centroids = mykmeanssp.fit(init_cents.tolist(),input_matrix.tolist(),size,k,d,max_iter,epsilon)
-
+    print("python is fine")  
+    #print (centroids[0][0])
+    
     for row, cent in enumerate(centroids):
         res = ""
         for i,item in enumerate(cent):
