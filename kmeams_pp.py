@@ -112,12 +112,21 @@ def main():
     idxs,init_cents = kmeanspp(input_matrix,k,keys) #initialize centroids 
     res = ""
     for n in (range(len(idxs)-1)):
-        res+="{:.4f}".format(idxs[n])+","
-    res+="{:.4f}".format(idxs[-1])+"\n"
-    
+        res+="{:.0f}".format(idxs[n])+","
+    res+="{:.0f}".format(idxs[-1])
     print(res)
-    print(mykmeanssp.fit(init_cents.tolist(),input_matrix.tolist(),size,k,d,max_iter,epsilon))
-    print("python is fine")    
+
+    centroids = mykmeanssp.fit(init_cents.tolist(),input_matrix.tolist(),size,k,d,max_iter,epsilon)
+
+    for row, cent in enumerate(centroids):
+        res = ""
+        for i,item in enumerate(cent):
+            if (i<d):
+                res+="{:.4f}".format(item)+","
+            else:
+                res+="{:.4f}".format(item)
+        print(res)
+
     #except Exception as e:
         # print("An Error Has Occurred\n")
         # exit()
