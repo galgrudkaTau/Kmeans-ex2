@@ -106,8 +106,9 @@ def main():
     keys=keys.to_numpy()
     data = input_data.drop(['0'],axis=1) # data frame 
     input_matrix = data.to_numpy() #nd array 
-    d=data.shape[1]
-
+    size = int(data.shape[0])
+    d = int(data.shape[1])
+    #print(data.shape)
     idxs,init_cents = kmeanspp(input_matrix,k,keys) #initialize centroids 
     res = ""
     for n in (range(len(idxs)-1)):
@@ -115,8 +116,8 @@ def main():
     res+="{:.4f}".format(idxs[-1])+"\n"
     
     print(res)
-    print(mykmeanssp.fit(init_cents,input_matrix,max_iter,epsilon))
-        
+    print(mykmeanssp.fit(init_cents.tolist(),input_matrix.tolist(),size,k,d,max_iter,epsilon))
+    print("python is fine")    
     #except Exception as e:
         # print("An Error Has Occurred\n")
         # exit()
