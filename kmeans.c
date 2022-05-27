@@ -2,9 +2,9 @@
 #include <Python.h>
 #include <stdio.h>
 #include <math.h>
+#include <float.h>
 #include <string.h>
 #include <stdlib.h>
-#include <float.h>
 #include <ctype.h>
 
 typedef struct list ELEMENT;
@@ -17,12 +17,12 @@ static void anErrorHasOccurred();
 static void invalidInput();
 static void restartClusters(LINK *clusters, int k, int conti);
 static void delete_list(LINK head);
-static void kMeans(int k, int size, int d, int max_iter, double **cents, LINK *clusters, double **matrix);
+static void kMeans(int k, int size, int d,double epsilon, int max_iter, double **cents, LINK *clusters, double **matrix);
 static void assignToCluster(double **cents,double** datapoints,LINK *clusters, int k, int size, int d);
-static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d);
+static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d, double epsilon);
 static double calculateNorma(double *old, double * new, int d);
 static double calculateDistance(double *datapoint, double *centroid, int d);
-static double** kMeansMain(int max_iter,double epsilon ,PyObject* cents,PyObject* datapoints);
+static double** kMeansMain(int size, int k, int d ,int max_iter,double epsilon ,PyObject *cents,PyObject *datapoints);
 static PyObject* fit(PyObject *self,PyObject *args);
 
 struct list { 
@@ -32,7 +32,7 @@ struct list {
 
 static PyMethodDef KmeansCAPIMethods[]={
     {"fit",
-     fit,
+     (PyCFunction)fit,
      METH_VARARGS,
      PyDoc_STR("")},
      {NULL, NULL,0,NULL}
@@ -56,17 +56,16 @@ PyMODINIT_FUNC PyInit_mykmeanssp(void){
     }
 
 static PyObject* fit(PyObject *self,PyObject *args){
-    int max_iter;
+    printf("entered fit\n");
+    int max_iter, k, size, d;
     double epsilon;
-    PyObject initCentArray;
-    PyObject inputMatrix;
-    if(!PyArg_ParseTuple(args, "OOid",&initCentArray, &inputMatrix ,&max_iter, &epsilon)){
+    PyObject* initCentArray;
+    PyObject* inputMatrix;
+    if(!PyArg_ParseTuple(args, "OOiiiid",&initCentArray, &inputMatrix, &size, &k, &d ,&max_iter, &epsilon)){
         return NULL;
     }
-    PyObject *cents= &initCentArray;
-    PyObject *inMatrix= &inputMatrix;
      
-    return Py_BuildValue("O",kMeansMain(max_iter,epsilon,cents,inMatrix));
+    return Py_BuildValue("O",kMeansMain(size, k, d ,max_iter,epsilon,initCentArray,inputMatrix));
 }
 
 static void anErrorHasOccurred(){
@@ -110,12 +109,12 @@ static void delete_list(LINK head) {
     }
 }
 
-static void kMeans(int k, int size, int d, int max_iter, double **cents, LINK *clusters, double **matrix){
+static void kMeans(int k, int size, int d, double epsilon, int max_iter, double **cents, LINK *clusters, double **matrix){
     int iter = 0;
     int continue_condition = 1;
     while (iter<max_iter && continue_condition){
        assignToCluster(cents, matrix, clusters, k, size, d);
-       continue_condition = updateCentroids(cents, clusters, matrix, k, d);
+       continue_condition = updateCentroids(cents, clusters, matrix, k, d, epsilon);
        iter++;
     }
 }
@@ -151,9 +150,8 @@ static void assignToCluster(double **cents,double** datapoints,LINK *clusters, i
     }
 }
 
-static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d) {
+static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d, double epsilon) {
     int i, j, m, s, difference = 0, sizeOfCluster;
-    double epsilon = 0.001;
     LINK current = NULL;
     double *sum = (double *)calloc(d, sizeof(double));
     if (sum == NULL){
@@ -204,54 +202,69 @@ static double calculateDistance(double *datapoint, double *centroid, int d){
     return distance;
 }
 
-static double **objectToMatrix(PyObject* obj){
-    Py_ssize_t objLen, itemLen;
+static double **objectToMatrix(PyObject* obj, int amount, int length){
     int i,j;
     double *vector = NULL;
-    double **matrix = NULL;
-
-    objLen=PyList_Size(obj);
-    itemLen=PyList_Size(PyList_GetItem(obj,0));
-    vector = (double *)calloc(objLen*itemLen, sizeof(double));
+    double **matrix = NULL;    PyObject *item = NULL;
+    printf("items in array =%d\n", amount);
+    printf("length of item =%d\n", length);
+    vector = (double *)calloc(amount*length, sizeof(double));
     if (vector == NULL){
+        printf("error in vector allocation\n");
         anErrorHasOccurred();
     }
-    matrix = (double **)calloc(objLen, sizeof(double *)); 
+    matrix = (double **)calloc(length, sizeof(double *)); 
     if (matrix == NULL){
+        printf("error in vector allocation\n");
         anErrorHasOccurred();
     }
-    for (i=0; i<objLen; i++) {
-        matrix[i] = vector + i*itemLen;
+    for (i=0; i<amount; i++) {
+        matrix[i] = vector + i*length;
     }
-    
-    for (i=0 ; i<objLen ; i++){
-        for (j=0; j<itemLen; j++){
-            matrix[i][j]=PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(obj,i),j));
+    matrix[0][0]= 1.0;
+    printf("about to enter for loop\n");
+    for (i=0 ; i<amount ; i++){
+        item = PyList_GetItem(obj,i);
+        for (j=0; j<length; j++){
+
+            matrix[i][j]=PyFloat_AsDouble(PyList_GetItem(item,j));
         }
     }
+    printf("reached end of Object to Matrix method\n");
     return matrix;
-
 }
 
-static double **kMeansMain(int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
+static double **kMeansMain(int size, int k, int d, int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
+    int i, j;
     double ** centroids, **dataMatrix;
-    int k,size,d;
     LINK *clusters;
     /*convert PyObject to list,..*/
-    centroids = objectToMatrix(cents);
-    dataMatrix = objectToMatrix(datapoints);
-
-    d = sizeof(*centroids)[0]/ sizeof(double);
+    printf("entered C main\n");
+    centroids = objectToMatrix(cents, k, d);
+    dataMatrix = objectToMatrix(datapoints, size, d);
+    /*d = sizeof(*centroids)[0]/ sizeof(double);
     size = sizeof(*dataMatrix)/sizeof(*centroids)[0];
-    k = sizeof(*centroids)/sizeof(*centroids)[0];
+    k = sizeof(*centroids)/sizeof(*centroids)[0];*/
     clusters = (LINK *)calloc(k, sizeof(LINK));
     if(clusters == NULL){
         anErrorHasOccurred();
     }
+    printf("allocated clusters\n");
     restartClusters(clusters, k, 1); /*this array holds K datapoints*/
-    kMeans(k, size, d, max_iter, centroids, clusters, dataMatrix);
+    printf("initialized clusters\n");
+    kMeans(k, size, d, epsilon, max_iter, centroids, clusters, dataMatrix);
+    printf("ran kMeans\n");
     free(dataMatrix[0]); 
     free(dataMatrix);
     free(clusters); 
+    
+    for (i = 0; i<k; i++){
+        for (j=0; j<d-1; j++){
+            printf("%.4f,",centroids[i][j]);
+        }
+        printf("%.4f",centroids[i][j]);
+        printf("\n");
+    }
+    printf("finished code");
     return centroids;
 }
