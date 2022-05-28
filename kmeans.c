@@ -14,7 +14,6 @@ typedef double *datapoint;
 /* datapoint is a pointer to a double array */
 
 static void anErrorHasOccurred();
-static void invalidInput();
 static void restartClusters(LINK *clusters, int k, int conti);
 static void delete_list(LINK head);
 static void kMeans(int k, int size, int d,double epsilon, int max_iter, double **cents, LINK *clusters, double **matrix);
@@ -24,22 +23,12 @@ static double calculateNorma(double *old, double * new, int d);
 static double calculateDistance(double *datapoint, double *centroid, int d);
 static PyObject* kMeansMain(int size, int k, int d ,int max_iter,double epsilon ,PyObject *cents,PyObject *datapoints);
 static PyObject* fit(PyObject *self,PyObject *args);
-static void printMatrix(int rowsNum,int d,double** dataMAt);
+
 struct list { 
     int datapoint; 
     struct list *next;   
 };
 
-static void printMatrix(int rowsNum,int d,double** dataMAt){
-     int i,j;
-     for (i = 0; i<rowsNum; i++){
-        for (j=0; j<d-1; j++){
-            printf("%.4f,",dataMAt[i][j]);
-        }
-        printf("%.4f",dataMAt[i][j]);
-        printf("\n");
-    }
-}
 static PyMethodDef KmeansCAPIMethods[]={
     {"fit",
      (PyCFunction)fit,
@@ -83,11 +72,6 @@ static void anErrorHasOccurred(){
     exit(1);
 }
 
-void invalidInput(){
-    printf("Invalid Input!\n");
-    exit(1);
-}
-
 
 static void restartClusters(LINK *clusters, int k, int conti) {
     int i;
@@ -125,7 +109,6 @@ static void kMeans(int k, int size, int d, double epsilon, int max_iter, double 
     while (iter<max_iter && continue_condition){
        assignToCluster(cents, matrix, clusters, k, size, d);
        continue_condition = updateCentroids(cents, clusters, matrix, k, d, epsilon);
-       
        iter++;
     }
 }
