@@ -26,7 +26,7 @@ def files_to_dataframe(file_name_1,file_name_2):
     data = data.sort_values(by=['0'])
     return data
 
-def kmeanspp(matrix, k,keys):
+def kmeanspp(matrix, k, keys):
     centroids = []
     init_idx = []
 
@@ -64,7 +64,6 @@ def check_is_natural(num):
         
         val_f = float(num)
         val_int = int(float(num))
-    
     except ValueError:
         invalid_input()
     
@@ -74,61 +73,67 @@ def check_is_natural(num):
 def check_is_float(num):
     try:
         # Convert it into float
-        
         val_f = float(num)
 
     except ValueError:
         invalid_input()
 
 def main():
-    #try:
-    check_is_natural(sys.argv[1])
-    k=int(sys.argv[1])
-    max_iter=300
-    if(len(sys.argv)==5):
-        check_is_float(sys.argv[2])
-        epsilon=float(sys.argv[2])
-        file_name_1=sys.argv[3]
-        file_name_2=sys.argv[4]
+    try:
+        check_is_natural(sys.argv[1])
+        k=int(float(sys.argv[1]))
+        if (k<=1):
+            return invalid_input()
         
-    elif (len(sys.argv)==6):
-        check_is_natural(sys.argv[2])
-        max_iter=int(sys.argv[2])
-        check_is_float(sys.argv[2])
-        epsilon=float(sys.argv[3])
-        file_name_1=sys.argv[4]
-        file_name_2=sys.argv[5]
-    else: 
-        invalid_input()
-        
-    input_data = files_to_dataframe(file_name_1, file_name_2)
-    keys= input_data.iloc[:,0] #extract the first column
-    keys=keys.to_numpy()
-    data = input_data.drop(['0'],axis=1) # data frame 
-    input_matrix = data.to_numpy() #nd array 
-    size = int(data.shape[0])
-    d = int(data.shape[1])
-    #print(data.shape)
-    idxs,init_cents = kmeanspp(input_matrix,k,keys) #initialize centroids 
-    res = ""
-    for n in (range(len(idxs)-1)):
-        res+="{:.0f}".format(idxs[n])+","
-    res+="{:.0f}".format(idxs[-1])
-    print(res)
-
-    centroids = mykmeanssp.fit(init_cents.tolist(),input_matrix.tolist(),size,k,d,max_iter,epsilon)
-
-    for row, cent in enumerate(centroids):
+        max_iter=300
+        if(len(sys.argv)==5):
+            check_is_float(sys.argv[2])
+            epsilon=float(sys.argv[2])
+            if (epsilon < 0):
+                return invalid_input()
+            file_name_1=sys.argv[3]
+            file_name_2=sys.argv[4]
+            
+        elif (len(sys.argv)==6):
+            check_is_natural(sys.argv[2])
+            max_iter=int(float(sys.argv[2]))
+            check_is_float(sys.argv[2])
+            epsilon=float(sys.argv[3])
+            if (epsilon < 0):
+                return invalid_input()
+            file_name_1=sys.argv[4]
+            file_name_2=sys.argv[5]
+        else: 
+            invalid_input()
+            
+        input_data = files_to_dataframe(file_name_1, file_name_2)
+        keys= input_data.iloc[:,0] #extract the first column
+        keys=keys.to_numpy()
+        data = input_data.drop(['0'],axis=1) # data frame 
+        input_matrix = data.to_numpy() #nd array 
+        size = int(data.shape[0])
+        d = int(data.shape[1])
+        #print(data.shape)
+        idxs,init_cents = kmeanspp(input_matrix,k,keys) #initialize centroids 
         res = ""
-        for i,item in enumerate(cent):
-            if (i<d):
-                res+="{:.4f}".format(item)+","
-            else:
-                res+="{:.4f}".format(item)
-        print(res[:-1])
+        for n in (range(len(idxs)-1)):
+            res+="{:.0f}".format(idxs[n])+","
+        res+="{:.0f}".format(idxs[-1])
+        print(res)
 
-    #except Exception as e:
-        # print("An Error Has Occurred\n")
-        # exit()
+        centroids = mykmeanssp.fit(init_cents.tolist(),input_matrix.tolist(),size,k,d,max_iter,epsilon)
+
+        for row, cent in enumerate(centroids):
+            res = ""
+            for i,item in enumerate(cent):
+                if (i<d):
+                    res+="{:.4f}".format(item)+","
+                else:
+                    res+="{:.4f}".format(item)
+            print(res[:-1])
+
+    except Exception as e:
+         print("An Error Has Occurred\n")
+         exit()
     
 main()
