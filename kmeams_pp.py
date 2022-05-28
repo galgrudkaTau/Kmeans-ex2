@@ -1,127 +1,282 @@
-import numpy as np
-import pandas as pd
-import sys 
-import math
-import mykmeanssp
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <stdio.h>
+#include <math.h>
+#include <float.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
-np.random.seed(0)
+typedef struct list ELEMENT;
+typedef ELEMENT *LINK;
+typedef double *datapoint; 
+/* LINK is a pointer to ELEMENT */
+/* datapoint is a pointer to a double array */
 
-def invalid_input():
-    sys.exit("Invalid Input!")
+static void anErrorHasOccurred();
+static void invalidInput();
+static void restartClusters(LINK *clusters, int k, int conti);
+static void delete_list(LINK head);
+static void kMeans(int k, int size, int d,double epsilon, int max_iter, double **cents, LINK *clusters, double **matrix);
+static void assignToCluster(double **cents,double** datapoints,LINK *clusters, int k, int size, int d);
+static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d, double epsilon);
+static double calculateNorma(double *old, double * new, int d);
+static double calculateDistance(double *datapoint, double *centroid, int d);
+static PyObject* kMeansMain(int size, int k, int d ,int max_iter,double epsilon ,PyObject *cents,PyObject *datapoints);
+static PyObject* fit(PyObject *self,PyObject *args);
+static void printMatrix(int rowsNum,int d,double** dataMAt);
+struct list { 
+    int datapoint; 
+    struct list *next;   
+};
 
-def an_error_has_occurred():
-    sys.exit("An Error Has Occurred")
+static void printMatrix(int rowsNum,int d,double** dataMAt){
+     int i,j;
+     for (i = 0; i<rowsNum; i++){
+        for (j=0; j<d-1; j++){
+            printf("%.4f,",dataMAt[i][j]);
+        }
+        printf("%.4f",dataMAt[i][j]);
+        printf("\n");
+    }
+}
+static PyMethodDef KmeansCAPIMethods[]={
+    {"fit",
+     (PyCFunction)fit,
+     METH_VARARGS,
+     PyDoc_STR("")},
+     {NULL, NULL,0,NULL}
+    };
 
-def files_to_dataframe(file_name_1,file_name_2):
-    file1 = pd.read_csv(file_name_1)
-    size1=file1.shape[1]
-    file2 = pd.read_csv(file_name_1)
-    size = [str(i) for i in range(file1.shape[1])]
-    file1 = pd.read_csv(file_name_1, names=size)
-    size = [str(i+size1-1) for i in range(file2.shape[1])]
-    size[0] = str(0)
-    file2 = pd.read_csv(file_name_2, names=size)
+static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "mykmeanssp", 
+        NULL, 
+        -1, 
+        KmeansCAPIMethods
+};
 
-    data = pd.merge(file1, file2, on = '0')
-    data = data.sort_values(by=['0'])
-    return data
+PyMODINIT_FUNC PyInit_mykmeanssp(void){
+    PyObject *m;
+    m=PyModule_Create(&moduledef);
+    if (!m) {
+        return NULL;
+    }
+    return m;
+    }
 
-def kmeanspp(matrix, k,keys):
-    centroids = []
-    init_idx = []
+static PyObject* fit(PyObject *self,PyObject *args){
+    /*printf("entered fit\n");*/
+    int max_iter, k, size, d;
+    double epsilon;
+    PyObject* initCentArray;
+    PyObject* inputMatrix;
+    if(!PyArg_ParseTuple(args, "OOiiiid",&initCentArray, &inputMatrix, &size, &k, &d ,&max_iter, &epsilon)){
+        return NULL;
+    }
 
-    matrix_idx =[idx for idx in keys]
-    if (k>len(matrix)):
-        invalid_input()
-    first_idx = np.random.choice(matrix_idx)
-    place=matrix_idx.index(first_idx)
-    init_idx.append(first_idx)
+    return Py_BuildValue("O",kMeansMain(size, k, d ,max_iter,epsilon,initCentArray,inputMatrix));
+}
+
+static void anErrorHasOccurred(){
+    printf("An Error Has Occurred\n");
+    exit(1);
+}
+
+void invalidInput(){
+    printf("Invalid Input!\n");
+    exit(1);
+}
+
+
+static void restartClusters(LINK *clusters, int k, int conti) {
+    int i;
+    LINK current;
+    if (conti>0){ /* should do restart and new intilazation */
+        for (i=0; i<k; i++) {
+        current = clusters[i];
+        delete_list(current);
+        clusters[i] = (ELEMENT*)malloc(sizeof(ELEMENT));
+        if (clusters[i] == NULL){
+            anErrorHasOccurred();
+        }
+        clusters[i]->datapoint = -1;
+        clusters[i]->next = NULL;
+        }
+    }
+    else{
+       for (i=0; i<k; i++) {
+        current = clusters[i];
+        delete_list(current);
+        } 
+    } 
+}
+
+static void delete_list(LINK head) {
+    if (head != NULL){
+        delete_list(head->next);
+        free(head);
+    }
+}
+
+static void kMeans(int k, int size, int d, double epsilon, int max_iter, double **cents, LINK *clusters, double **matrix){
+    int iter = 0;
+    int continue_condition = 1;
+    while (iter<max_iter && continue_condition){
+       assignToCluster(cents, matrix, clusters, k, size, d);
+       continue_condition = updateCentroids(cents, clusters, matrix, k, d, epsilon);
+       
+       iter++;
+    }
+}
+
+static void assignToCluster(double **cents,double** datapoints,LINK *clusters, int k, int size, int d) {
+    double distance;
+    double tempDist = 0;
+    int clusterIndex, i, j;
+    LINK current, new;
     
-    centroids.append(matrix[place])
-    #print("first centroid "+"".join(str(matrix[first_idx])))
-    while (len(centroids)<k):
-        D = np.full((len(matrix)),float('inf'))
-        for l,datapoint in enumerate(matrix):
-            dist = [calculate_distance(centroid, datapoint) for j,centroid in enumerate(centroids)]
-            D[l] = min(dist)   
-        Dm = sum(D)
-        P = [D[i]/Dm for i in range(len(matrix_idx))]
-        idx_chosen = np.random.choice(matrix_idx, p=P)
-        init_idx.append(idx_chosen)
-        #print(idx_chosen)
-        place=matrix_idx.index(idx_chosen)
-        centroids.append(matrix[place])
-        init_centroids = np.stack(centroids)
-
-    return init_idx, init_centroids
-
-def calculate_distance(centroid, data_point):
-    return sum([pow(centroid[i]-data_point[i],2) for i in range(len(centroid))])
-
-def check_is_natural(num):
-    try:
-        # Convert it into float
-        
-        val_f = float(num)
-        val_int = int(float(num))
-    
-    except ValueError:
-        invalid_input()
-    
-    if val_f!=val_int or val_int<=0:
-        invalid_input()
-
-def check_is_float(num):
-    try:
-        val_f = float(num)
-
-    except ValueError:
-        invalid_input()
-
-def main():
-    try:
-        check_is_natural(sys.argv[1])
-        k=int(sys.argv[1])
-        max_iter=300
-        if(len(sys.argv)==5):
-            check_is_float(sys.argv[2])
-            epsilon=float(sys.argv[2])
-            file_name_1=sys.argv[3]
-            file_name_2=sys.argv[4]
+    for(i=0; i<size; i++) {
+        clusterIndex = -1;
+        distance = DBL_MAX;
+        for (j=0; j<k; j++){
             
-        elif (len(sys.argv)==6):
-            check_is_natural(sys.argv[2])
-            max_iter=int(sys.argv[2])
-            check_is_float(sys.argv[2])
-            epsilon=float(sys.argv[3])
-            file_name_1=sys.argv[4]
-            file_name_2=sys.argv[5]
-        else: 
-            invalid_input()
+            tempDist = calculateDistance(datapoints[i], cents[j], d);
+            if (tempDist < distance) {
+                distance = tempDist;
+                clusterIndex = j;
+            }
+        }
+        if (clusters[clusterIndex]->datapoint == -1) {
+            clusters[clusterIndex]->datapoint = i;
             
-        input_data = files_to_dataframe(file_name_1, file_name_2)
-        keys= input_data.iloc[:,0] #extract the first column
-        keys=keys.to_numpy()
-        data = input_data.drop(['0'],axis=1) # data frame 
-        input_matrix = data.to_numpy() #nd array 
-        size = int(data.shape[0])
-        d = int(data.shape[1])
-        #print(data.shape)
-        idxs,init_cents = kmeanspp(input_matrix,k,keys) #initialize centroids 
-        res = ""
-        for n in (range(len(idxs)-1)):
-            res+="{:.0f}".format(idxs[n])+","
-        res+="{:.0f}".format(idxs[-1])
-        print(res)
+        }else {
+            current = clusters[clusterIndex];
+            new = (ELEMENT*)malloc( sizeof(ELEMENT));
+            if (new == NULL){
+                anErrorHasOccurred();
+            }
+            new -> datapoint = i;
+            new -> next = current;
+            
+            clusters[clusterIndex] = new;
+        }
+    }
+}
 
-        centroids = mykmeanssp.fit(init_cents.tolist(),input_matrix.tolist(),size,k,d,max_iter,epsilon)
-        for row, cent in enumerate(centroids):
-            res = ""
-            for i,item in enumerate(cent):
-                res+="{:.4f}".format(item)+","
-            print(res[:-1])
+static int updateCentroids(double **cents, LINK *clusters, double** inputMatrix ,int k, int d, double epsilon) {
+    int i, j, m, s, difference = 0, sizeOfCluster;
+    LINK current = NULL;
+    double *sum = (double *)calloc(d, sizeof(double));
+    if (sum == NULL){
+        anErrorHasOccurred();
+    }
+    for (i=0; i<k; i++) {
+        current = clusters[i];
+        sizeOfCluster = 0;
+        while (current != NULL && current->datapoint != -1){
+            for (j=0; j<d; j++) {
+                sum[j] += inputMatrix[current->datapoint][j];
+            }
+            current = current->next;
+            sizeOfCluster++;
+        }
+     
+        if (sizeOfCluster == 0){
+            anErrorHasOccurred();
+        }
+        for (m=0; m<d; m++){
+            sum[m] /= sizeOfCluster;
+        }
+        difference += (calculateNorma(cents[i], sum, d) > epsilon)?1:0;
+        for (s=0; s<d; s++) {
+            cents[i][s] = sum[s];
+            sum[s] = 0;
+        }
+    }
+    restartClusters(clusters, k, difference);
+    free(sum);
+    return difference > 0;
+}
 
-    except Exception as e:
-        print("An Error Has Occurred\n")
-        exit()
-main()
+static double calculateNorma(double *old, double *new, int d){
+    double sum = 0;
+    int i;
+    for (i=0; i<d; i++){
+        sum += pow(old[i]-new[i],2);
+    }
+    return sqrt(sum);
+}
+
+static double calculateDistance(double *datapoint, double *centroid, int d){
+    double distance = 0;
+    int j;
+
+    for (j = 0; j<d; j++){
+        distance+= pow(datapoint[j] - centroid[j],2);
+    }
+    return distance;
+}
+
+static double **objectToMatrix(PyObject* obj, int amount, int length){
+    int i,j;
+    double *vector = NULL;
+    double **matrix = NULL;    PyObject *item = NULL;
+    vector = (double *)calloc(amount*length, sizeof(double));
+    if (vector == NULL){
+        anErrorHasOccurred();
+    }
+    matrix = (double **)calloc(amount, sizeof(double *)); 
+    if (matrix == NULL){
+        anErrorHasOccurred();
+    }
+    for (i=0; i<amount; i++) {
+        matrix[i] = vector + i*length;
+    }
+
+  
+    for (i=0 ; i<amount ; i++){
+        item = PyList_GetItem(obj,i);
+        for (j=0; j<length; j++){
+
+            matrix[i][j]=PyFloat_AsDouble(PyList_GetItem(item,j));
+        }
+    }
+   
+    return matrix;
+}
+
+static PyObject *kMeansMain(int size, int k, int d, int max_iter, double epsilon ,PyObject* cents,PyObject* datapoints){
+    PyObject *CoutputList, *centroid, *item;
+    int i, j;
+    double ** centroids, **dataMatrix;
+    LINK *clusters;
+    /*convert PyObject to list,..*/
+    centroids = objectToMatrix(cents, k, d);
+    dataMatrix = objectToMatrix(datapoints, size, d);
+    /*printf("first index in first datapoint is %lf\n",dataMatrix[0][0]);*/
+    /*printf("first index in first centroid is %lf\n",centroids[0][0]);*/
+    clusters = (LINK *)calloc(k, sizeof(LINK));
+    if(clusters == NULL){
+        anErrorHasOccurred();
+    }
+    
+    restartClusters(clusters, k, 1); /*this array holds K datapoints*/
+
+    kMeans(k, size, d, epsilon, max_iter, centroids, clusters, dataMatrix);
+    free(dataMatrix[0]); 
+    free(dataMatrix);
+    free(clusters); 
+    CoutputList = PyList_New(k);
+    for (i = 0; i<k; i++){
+        centroid = PyList_New(d);
+        for (j=0; j<d; j++){
+            item = PyFloat_FromDouble(centroids[i][j]);
+            PyList_SetItem(centroid,j,item);
+        }
+        PyList_SetItem(CoutputList,i,centroid);
+    }
+    //free(centroids[0]);
+    //free(centroids);
+    return CoutputList;
+}
