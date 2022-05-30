@@ -259,7 +259,7 @@ static PyObject *kMeansMain(int size, int k, int d, int max_iter, double epsilon
         }
         PyList_SetItem(CoutputList,i,centroid);
     }
-    //free(centroids[0]);
-    //free(centroids);
+    free(centroids[0]);
+    free(centroids);
     return CoutputList;
 }
